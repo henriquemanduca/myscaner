@@ -12,7 +12,7 @@ LDFLAGS := -w -s \
 	-X '$(MODULE_PATH)/internal/buildinfo.Commit=$(COMMIT)' \
 	-X '$(MODULE_PATH)/internal/buildinfo.Date=$(DATE)'
 
-.PHONY: all build run test lint clean help
+.PHONY: all build run test lint clean help install uninstall
 
 all: build
 
@@ -32,3 +32,9 @@ test: ## Executa os testes unitários com detecção de data race
 
 clean: ## Remove binários e artefatos de build
 	rm -rf $(BUILD_DIR)
+
+install: build ## Instala o my-scaner no sistema via install.sh
+	@./install.sh $(ARGS)
+
+uninstall: ## Desinstala o my-scaner via install.sh
+	@./install.sh --uninstall $(ARGS)

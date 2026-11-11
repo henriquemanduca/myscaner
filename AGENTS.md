@@ -35,7 +35,8 @@ my-scaner/
 │       └── image.go             # Validação de extensões, encoding data URL e cálculo de path .md
 ├── configs/                     # Modelos de configuração (ex: config.example.yaml)
 ├── bin/                         # Binários compilados (ignorado no git)
-├── Makefile                     # Automação de tarefas (build, test, run, clean)
+├── install.sh                   # Script de instalação/desinstalação no Linux
+├── Makefile                     # Automação de tarefas (build, test, run, clean, install, uninstall)
 ├── go.mod
 ├── go.sum
 └── .gitignore
@@ -78,4 +79,6 @@ Ao propor ou implementar alterações, siga estritamente as seguintes regras:
 | `make build` | Compila o binário aplicando `-ldflags` para `buildinfo` em `./bin/my-scaner` |
 | `make test` | Executa todos os testes unitários com race detector (`go test -race -v ./...`) |
 | `make clean` | Remove o diretório `./bin` e artefatos de compilação |
+| `make install` | Executa `./install.sh` para instalar binário, configs e autocompleções |
+| `make uninstall` | Executa `./install.sh --uninstall` para remover o utilitário |
 | `./bin/my-scaner scan -p <imagem>` | Extrai texto da imagem e gera o arquivo `.md` correspondente |

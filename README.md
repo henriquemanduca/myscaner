@@ -29,6 +29,7 @@ my-scaner/
 │       └── image.go                # Validação de extensões, encoding data URL e caminhos
 ├── configs/
 │   └── config.example.yaml         # Template de configuração
+├── install.sh                      # Script de instalação/desinstalação para Linux
 ├── Makefile                        # Tarefas de compilação, teste e execução
 ├── AGENTS.md                       # Diretrizes de desenvolvimento para agentes de IA
 ├── go.mod
@@ -59,9 +60,36 @@ my-scaner/
 
 ---
 
-## 🚀 Como Utilizar
+## 🚀 Instalação e Utilização
 
-### 1. Compilar o binário
+### Instalação no Linux
+
+O repositório inclui o script [`install.sh`](file:///home/henrique/projetos/pessoal/my-scaner/install.sh) para automatizar a compilação, instalação do binário, configuração e autocompleções de shell (Bash, Zsh e Fish).
+
+#### 1. Instalação rápida para o usuário (`~/.local/bin`)
+Não requer privilégios de administrador (`sudo`):
+```bash
+./install.sh
+# ou via Makefile
+make install
+```
+
+#### 2. Instalação global no sistema (`/usr/local/bin`)
+```bash
+sudo ./install.sh --system
+```
+
+#### 3. Opções avançadas do instalador
+```bash
+./install.sh --prefix /opt/my-scaner   # Diretório customizado
+./install.sh --no-config               # Não cria arquivo de configuração padrão
+./install.sh --no-completion           # Pula registro de compleções no shell
+./install.sh --uninstall               # Desinstala o binário e autocompleções
+```
+
+---
+
+### Execução Local (sem instalar)
 ```bash
 make build
 ```

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -43,6 +44,9 @@ func Load(cfgFile string) (*Config, error) {
 		v.SetConfigName("config")
 		v.SetConfigType("yaml")
 		v.AddConfigPath(".")
+		if home, err := os.UserHomeDir(); err == nil {
+			v.AddConfigPath(filepath.Join(home, ".config", "my-scaner"))
+		}
 		v.AddConfigPath("$HOME/.config/my-scaner")
 		v.AddConfigPath("/etc/my-scaner")
 	}
