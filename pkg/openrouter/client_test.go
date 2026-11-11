@@ -12,6 +12,51 @@ import (
 	"my-scaner/pkg/openrouter"
 )
 
+func TestValidateInputFile(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// 1. Arquivo de imagem válido (.png)
+	validPNG := filepath.Join(tempDir, "test.png")
+	if err := os.WriteFile(validPNG, []byte("fake image data"), 0644); err != nil {
+		t.Fatalf("erro ao criar arquivo temporário: %v", err)
+	}
+	if err := openrouter.ValidateInputFile(validPNG); err != nil {
+		t.Errorf("esperava sucesso para .png válido, obteve: %v", err)
+	}
+
+	// 2. Arquivo PDF válido (.pdf)
+	validPDF := filepath.Join(tempDir, "test.pdf")
+	if err := os.WriteFile(validPDF, []byte("%PDF-1.4 fake"), 0644); err != nil {
+		t.Fatalf("erro ao criar arquivo: %v", err)
+	}
+	if err := openrouter.ValidateInputFile(validPDF); err != nil {
+		t.Errorf("esperava sucesso para .pdf válido, obteve: %v", err)
+	}
+	if !openrouter.IsPDF(validPDF) {
+		t.Errorf("esperava IsPDF true para %s", validPDF)
+	}
+
+	// 3. Arquivo com extensão inválida (.txt)
+	invalidTXT := filepath.Join(tempDir, "test.txt")
+	if err := os.WriteFile(invalidTXT, []byte("plain text"), 0644); err != nil {
+		t.Fatalf("erro ao criar arquivo: %v", err)
+	}
+	if err := openrouter.ValidateInputFile(invalidTXT); err == nil {
+		t.Errorf("esperava erro para extensão não suportada (.txt), obteve nil")
+	}
+
+	// 4. Arquivo inexistente
+	nonExistent := filepath.Join(tempDir, "does-not-exist.pdf")
+	if err := openrouter.ValidateInputFile(nonExistent); err == nil {
+		t.Errorf("esperava erro para arquivo inexistente, obteve nil")
+	}
+
+	// 5. Diretório ao invés de arquivo
+	if err := openrouter.ValidateInputFile(tempDir); err == nil {
+		t.Errorf("esperava erro ao passar diretório, obteve nil")
+	}
+}
+
 func TestValidateImageFile(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -53,6 +98,8 @@ func TestOutputMarkdownPath(t *testing.T) {
 		{"/path/to/doc.png", "/path/to/doc.md"},
 		{"./image.JPEG", "./image.md"},
 		{"invoice.webp", "invoice.md"},
+		{"documento.pdf", "documento.md"},
+		{"/var/data/relatorio.PDF", "/var/data/relatorio.md"},
 	}
 
 	for _, tc := range cases {

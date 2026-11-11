@@ -4,9 +4,20 @@
 log_level: "info"       # debug, info, warn, error
 log_format: "text"      # text ou json
 
+# Provedor ativo padrão: "openrouter" (nuvem) ou "lmstudio" (local)
+provider: "openrouter"
+
 openrouter:
   # Chave de API da sua conta OpenRouter (ou exporte OPENROUTER_API_KEY no shell)
   api_key: ""
   # Modelo multimodal padrão para visão computacional / OCR
   model: "google/gemini-2.0-flash-001"
   base_url: "https://openrouter.ai/api/v1"
+
+lmstudio:
+  # Endpoint local padrão do LM Studio
+  base_url: "http://localhost:1234/v1"
+  # Nome do modelo carregado no LM Studio (ou "default")
+  model: "default"
+  # Chave de API (normalmente não requerida em ambiente local)
+  api_key: ""

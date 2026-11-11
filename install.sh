@@ -249,7 +249,7 @@ install_binary() {
     fi
 }
 
-# Instalação do arquivo de configuração
+# Instalação do arquivo de configuração (YAML)
 install_configuration() {
     if [[ "$INSTALL_CONFIG" == false ]]; then
         info "Instalação de arquivo de configuração ignorada (--no-config)."
@@ -257,23 +257,18 @@ install_configuration() {
     fi
 
     step "Configurando arquivo de ambiente"
-    local example_cfg="$SCRIPT_DIR/configs/config.example.yaml"
-    local target_cfg="$CONFIG_DIR/config.yaml"
-
-    if [[ ! -f "$example_cfg" ]]; then
-        warn "Arquivo de exemplo não encontrado em $example_cfg. Pulando configuração."
-        return 0
-    fi
+    local example_yaml="$SCRIPT_DIR/configs/config.example.yaml"
+    local target_yaml="$CONFIG_DIR/config.yaml"
 
     run_cmd "$CONFIG_DIR" mkdir -p "$CONFIG_DIR"
 
-    if [[ -f "$target_cfg" ]]; then
-        info "Arquivo de configuração existente mantido: $target_cfg"
-    else
-        run_cmd "$CONFIG_DIR" cp "$example_cfg" "$target_cfg"
-        run_cmd "$CONFIG_DIR" chmod 600 "$target_cfg"
-        success "Modelo de configuração instalado em: $target_cfg"
-        info "Edite este arquivo para adicionar sua chave de API OpenRouter se desejar."
+    if [[ -f "$target_yaml" ]]; then
+        info "Arquivo de configuração existente mantido: $target_yaml"
+    elif [[ -f "$example_yaml" ]]; then
+        run_cmd "$CONFIG_DIR" cp "$example_yaml" "$target_yaml"
+        run_cmd "$CONFIG_DIR" chmod 600 "$target_yaml"
+        success "Modelo de configuração YAML instalado em: $target_yaml"
+        info "Edite este arquivo para personalizar provedor, modelo e chave de API."
     fi
 }
 
@@ -388,8 +383,7 @@ uninstall_app() {
         fi
     done
 
-    # Configuração
-    local target_cfg="$CONFIG_DIR/config.yaml"
+    # Configurações
     if [[ -d "$CONFIG_DIR" ]]; then
         local remove_cfg=false
         if [[ "$ASSUME_YES" == true ]]; then
@@ -444,12 +438,12 @@ main() {
     fi
 
     echo -e "\n${BOLD}Próximos passos:${RESET}"
-    echo "  1. Certifique-se de que sua chave de API está definida:"
-    echo "     export OPENROUTER_API_KEY=\"sua-chave-aqui\""
-    echo "     ou configure em $CONFIG_DIR/config.yaml"
+    echo "  1. Configuração padrão instalada em:"
+    echo "     $CONFIG_DIR/config.yaml"
+    echo "     (edite este arquivo para ajustar provedor ativo, modelo e chave de API)"
     echo "  2. Teste o utilitário executando:"
     echo "     $APP_NAME --help"
-    echo "     $APP_NAME scan -p /caminho/para/imagem.png"
+    echo "     $APP_NAME scan -p /caminho/para/documento.pdf"
 }
 
 main "$@"

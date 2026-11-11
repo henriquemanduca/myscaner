@@ -1,6 +1,6 @@
 # my-scaner
 
-Ferramenta CLI profissional em **Go** para extração de texto de imagens (OCR) via **OpenRouter** e estruturação automática em formato **Markdown (.md)**, seguindo os padrões canônicos da comunidade (*Standard Go Project Layout*) e arquitetura desacoplada.
+Ferramenta CLI profissional em **Go** para extração de texto de documentos **PDF** e **imagens** (OCR) via inteligência artificial com suporte a **OpenRouter** (nuvem) e **LM Studio** (local/offline), estruturando o resultado de forma automática e limpa em formato **Markdown (.md)**, seguindo os padrões canônicos da comunidade (*Standard Go Project Layout*) e arquitetura desacoplada.
 
 ---
 
@@ -16,17 +16,29 @@ my-scaner/
 │   │   └── buildinfo.go
 │   ├── cli/                        # Camada de interface CLI (Cobra)
 │   │   ├── root.go                 # Comando raiz, flags globais e graceful shutdown
-│   │   ├── scan.go                 # Comando 'scan' (extração OCR e geração de .md)
+│   │   ├── scan.go                 # Comando 'scan' (extração OCR de imagens/PDF e geração de .md)
 │   │   └── version.go              # Subcomando 'version' (suporte a texto e JSON)
 │   ├── config/                     # Gestão de configurações com Viper
-│   │   └── config.go
+│   │   ├── config.go
+│   │   └── config_test.go
 │   └── logger/                     # Logging estruturado com log/slog (JSON/Text)
 │       └── logger.go
 ├── pkg/                            # Código público e reutilizável por outras aplicações
-│   └── openrouter/                 # Serviço de integração OpenRouter e processamento de imagem
-│       ├── client.go               # Cliente HTTP multimodal e interface Extractor
-│       ├── client_test.go          # Testes de unidade com httptest
-│       └── image.go                # Validação de extensões, encoding data URL e caminhos
+│   ├── fileutil/                   # Utilitários compartilhados de validação, detecção e base64
+│   │   └── fileutil.go
+│   ├── llm/                        # Abstração comum de clientes compatíveis com a API OpenAI
+│   │   ├── client.go               # Cliente base reutilizado por OpenRouter e LM Studio
+│   │   └── extractor.go            # Contrato comum Extractor
+│   ├── lmstudio/                   # Cliente para LM Studio local
+│   │   ├── client.go
+│   │   └── client_test.go
+│   ├── openrouter/                 # Cliente para OpenRouter (nuvem)
+│   │   ├── client.go
+│   │   ├── client_test.go
+│   │   └── image.go
+│   └── pdf/                        # Domínio de conversão e extração de PDF
+│       ├── converter.go            # Interface Converter e renderizador poppler (pdftoppm)
+│       └── converter_test.go       # Testes unitários do conversor de PDF
 ├── configs/
 │   └── config.example.yaml         # Template de configuração
 ├── install.sh                      # Script de instalação/desinstalação para Linux
@@ -44,19 +56,23 @@ my-scaner/
 1. **Standard Go Project Layout (`cmd/`, `internal/`, `pkg/`)**:
    - `cmd/`: Apenas `main.go` mínimo chamando `cli.Execute()`.
    - `internal/`: Protege componentes da CLI de acoplamento externo.
-   - `pkg/openrouter`: Expõe o contrato `Extractor` e o cliente de comunicação via API.
+   - `pkg/llm`: Núcleo compartilhado que elimina duplicação de código entre provedores compatíveis com a especificação OpenAI.
+   - `pkg/openrouter`, `pkg/lmstudio` e `pkg/pdf`: Implementações e interfaces reutilizáveis.
 
-2. **Cobra + Viper Integration**:
-   - Hierarquia de resolução de credenciais e modelo: **Flags CLI (`--api-key`, `--model`) > Variáveis de Ambiente (`OPENROUTER_API_KEY`, `MY_SCANER_*`) > Arquivo de Configuração > Valores Padrão**.
+2. **Suporte a Provedores Híbridos (Nuvem e Local)**:
+   - **OpenRouter**: Modelos de ponta em nuvem (`google/gemini-2.0-flash-001`, `anthropic/claude-3.5-sonnet`, etc.).
+   - **LM Studio**: Execução 100% local e privada em `http://localhost:1234/v1` (sem envio de dados para servidores externos).
 
-3. **Injeção de Metadados de Compilação (`ldflags`)**:
+3. **Suporte Completo a PDF**:
+   - Conversão página a página em alta resolução (DPI configurável) via `poppler-utils` (`pdftoppm`).
+   - Ciclo de vida efêmero seguro com deleção automática das imagens temporárias.
+   - Consolidação de documentos de múltiplas páginas em um único arquivo `.md`.
+
+4. **Injeção de Metadados de Compilação (`ldflags`)**:
    - O `Makefile` injeta versão Git, hash do commit e data UTC diretamente nas variáveis de `buildinfo`.
 
-4. **Graceful Shutdown**:
-   - Captura de sinais do sistema (`SIGINT`, `SIGTERM`) propagando `context.Context` para cancelar requisições HTTP em andamento.
-
-5. **Logging Estruturado (`log/slog`)**:
-   - Suporte dinâmico a `--verbose` e formatos de log `--log-format text|json`.
+5. **Graceful Shutdown**:
+   - Captura de sinais do sistema (`SIGINT`, `SIGTERM`) propagando `context.Context` para cancelar requisições HTTP e subprocessos em andamento.
 
 ---
 
@@ -64,67 +80,56 @@ my-scaner/
 
 ### Instalação no Linux
 
-O repositório inclui o script [`install.sh`](file:///home/henrique/projetos/pessoal/my-scaner/install.sh) para automatizar a compilação, instalação do binário, configuração e autocompleções de shell (Bash, Zsh e Fish).
-
-#### 1. Instalação rápida para o usuário (`~/.local/bin`)
-Não requer privilégios de administrador (`sudo`):
 ```bash
+# Instalação rápida no diretório do usuário (~/.local/bin)
 ./install.sh
 # ou via Makefile
 make install
 ```
 
-#### 2. Instalação global no sistema (`/usr/local/bin`)
-```bash
-sudo ./install.sh --system
-```
+---
 
-#### 3. Opções avançadas do instalador
-```bash
-./install.sh --prefix /opt/my-scaner   # Diretório customizado
-./install.sh --no-config               # Não cria arquivo de configuração padrão
-./install.sh --no-completion           # Pula registro de compleções no shell
-./install.sh --uninstall               # Desinstala o binário e autocompleções
-```
+### Configuração
+
+O `my-scaner` aceita **exclusivamente arquivos YAML**. A configuração é buscada, nesta ordem, em:
+
+1. `./config.yaml` (diretório atual)
+2. `~/.config/my-scaner/config.yaml`
+3. `/etc/my-scaner/config.yaml`
+
+Use [`configs/config.example.yaml`](configs/config.example.yaml) como modelo. Também é possível definir variáveis de ambiente com o prefixo `MY_SCANER_` (ex.: `MY_SCANER_PROVIDER`, `MY_SCANER_OPENROUTER_API_KEY`) ou usar a flag `--config` para indicar um arquivo YAML específico.
 
 ---
 
-### Execução Local (sem instalar)
-```bash
-make build
-```
-O binário será gerado em `./bin/my-scaner`.
+### Execução do Comando `scan`
 
-### 2. Executar testes
-```bash
-make test
-```
+O comando `scan` aceita imagens e PDFs, permitindo alternar facilmente entre nuvem e local:
 
-### 3. Configurar a Chave do OpenRouter
-Você pode definir a chave via variável de ambiente:
+#### 1. Usando OpenRouter (Padrão)
 ```bash
 export OPENROUTER_API_KEY="sk-or-v1-..."
+./bin/my-scaner scan -p /caminho/para/documento.pdf
 ```
-Ou criar um arquivo `config.yaml` baseado em `configs/config.example.yaml`.
 
-### 4. Executar o comando `scan`
-O comando `scan` exige a flag `-p, --path` apontando para a imagem. O arquivo `.md` será gravado no mesmo diretório com o mesmo nome base da imagem:
-
+#### 2. Usando LM Studio Local (100% Offline / Privado)
 ```bash
-# Extração básica
-./bin/my-scaner scan -p /caminho/para/documento.png
+# Certifique-se de que o servidor local do LM Studio está iniciado na porta 1234
+./bin/my-scaner scan -p /caminho/para/documento.png --provider lmstudio
 
-# O arquivo extraído será salvo em:
-# /caminho/para/documento.md
-
-# Usando com modelo específico e chave de API direta:
-./bin/my-scaner scan -p ./nota.jpg --model anthropic/claude-3.5-sonnet --api-key sk-or-v1-...
+# Para PDF com modelo local específico
+./bin/my-scaner scan -p ./relatorio.pdf --provider lmstudio --model qwen2.5-vl-7b-instruct
 ```
 
-### Formatos de imagem suportados:
-- `.png`
-- `.jpg`, `.jpeg`
-- `.webp`
-- `.gif`
-- `.bmp`
-- `.tiff`, `.tif`
+#### 3. Preservar imagens temporárias das páginas do PDF (opcional)
+```bash
+./bin/my-scaner scan -p ./documento.pdf --keep-images
+```
+
+#### 4. Flags disponíveis no comando `scan`:
+- `-p, --path`: Caminho do arquivo de imagem ou PDF (**obrigatório**).
+- `--provider`: Provedor de IA (`openrouter` ou `lmstudio`).
+- `-m, --model`: Nome ou identificador do modelo.
+- `--api-key`: Chave de API.
+- `--base-url`: Endpoint customizado da API.
+- `--dpi`: Resolução em DPI para páginas de PDF (padrão: 150).
+- `--keep-images`: Salva as páginas convertidas em pasta local.
