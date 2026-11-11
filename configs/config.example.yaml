@@ -1,0 +1,13 @@
+# Exemplo de arquivo de configuração do my-scaner
+# Pode ser salvo como ./config.yaml ou ~/.config/my-scaner/config.yaml
+
+log_level: "info"       # debug, info, warn, error
+log_format: "text"      # text ou json
+
+scanner:
+  timeout_seconds: 3
+  default_ports:
+    - 80
+    - 443
+    - 8080
+  concurrency: 10

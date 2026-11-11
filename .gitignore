@@ -1,0 +1,17 @@
+# Binários e diretórios de compilação
+bin/
+dist/
+
+# Arquivos de teste e cobertura
+*.test
+*.out
+coverage.html
+
+# Arquivos locais de configuração do ambiente
+config.yaml
+.env
+
+# Arquivos de IDE e SO
+.vscode/
+.idea/
+.DS_Store
