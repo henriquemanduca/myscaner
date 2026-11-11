@@ -1,13 +1,12 @@
-# Exemplo de arquivo de configuração do my-scaner
+# Exemplo de configuração do my-scaner
 # Pode ser salvo como ./config.yaml ou ~/.config/my-scaner/config.yaml
 
 log_level: "info"       # debug, info, warn, error
 log_format: "text"      # text ou json
 
-scanner:
-  timeout_seconds: 3
-  default_ports:
-    - 80
-    - 443
-    - 8080
-  concurrency: 10
+openrouter:
+  # Chave de API da sua conta OpenRouter (ou exporte OPENROUTER_API_KEY no shell)
+  api_key: ""
+  # Modelo multimodal padrão para visão computacional / OCR
+  model: "google/gemini-2.0-flash-001"
+  base_url: "https://openrouter.ai/api/v1"

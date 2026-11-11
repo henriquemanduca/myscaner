@@ -1,6 +1,6 @@
 # my-scaner
 
-Estrutura base profissional para utilitários de linha de comando (CLI) em **Go**, seguindo os padrões canônicos da comunidade Go (*Standard Go Project Layout*) e arquitetura desacoplada.
+Ferramenta CLI profissional em **Go** para extração de texto de imagens (OCR) via **OpenRouter** e estruturação automática em formato **Markdown (.md)**, seguindo os padrões canônicos da comunidade (*Standard Go Project Layout*) e arquitetura desacoplada.
 
 ---
 
@@ -16,19 +16,21 @@ my-scaner/
 │   │   └── buildinfo.go
 │   ├── cli/                        # Camada de interface CLI (Cobra)
 │   │   ├── root.go                 # Comando raiz, flags globais e graceful shutdown
-│   │   ├── scan.go                 # Subcomando de exemplo 'scan'
+│   │   ├── scan.go                 # Comando 'scan' (extração OCR e geração de .md)
 │   │   └── version.go              # Subcomando 'version' (suporte a texto e JSON)
 │   ├── config/                     # Gestão de configurações com Viper
 │   │   └── config.go
 │   └── logger/                     # Logging estruturado com log/slog (JSON/Text)
 │       └── logger.go
 ├── pkg/                            # Código público e reutilizável por outras aplicações
-│   └── scanner/
-│       ├── scanner.go              # Lógica de negócio e interfaces do scanner
-│       └── scanner_test.go         # Testes de unidade com race detector
+│   └── openrouter/                 # Serviço de integração OpenRouter e processamento de imagem
+│       ├── client.go               # Cliente HTTP multimodal e interface Extractor
+│       ├── client_test.go          # Testes de unidade com httptest
+│       └── image.go                # Validação de extensões, encoding data URL e caminhos
 ├── configs/
 │   └── config.example.yaml         # Template de configuração
 ├── Makefile                        # Tarefas de compilação, teste e execução
+├── AGENTS.md                       # Diretrizes de desenvolvimento para agentes de IA
 ├── go.mod
 ├── go.sum
 └── .gitignore
@@ -39,59 +41,62 @@ my-scaner/
 ## 🛠️ Padrões e Boas Práticas Adotados
 
 1. **Standard Go Project Layout (`cmd/`, `internal/`, `pkg/`)**:
-   - `cmd/`: Apenas arquivos `main.go` mínimos responsáveis por delegar a execução.
-   - `internal/`: Protege pacotes internos de importações indevidas por outros módulos externos.
-   - `pkg/`: Contém bibliotecas ou utilitários reutilizáveis projetados com contratos claros (`interfaces`).
+   - `cmd/`: Apenas `main.go` mínimo chamando `cli.Execute()`.
+   - `internal/`: Protege componentes da CLI de acoplamento externo.
+   - `pkg/openrouter`: Expõe o contrato `Extractor` e o cliente de comunicação via API.
 
 2. **Cobra + Viper Integration**:
-   - Resolução de configurações com hierarquia: **Flags CLI > Variáveis de Ambiente (`MY_SCANER_*`) > Arquivo de Configuração > Valores Padrão**.
+   - Hierarquia de resolução de credenciais e modelo: **Flags CLI (`--api-key`, `--model`) > Variáveis de Ambiente (`OPENROUTER_API_KEY`, `MY_SCANER_*`) > Arquivo de Configuração > Valores Padrão**.
 
 3. **Injeção de Metadados de Compilação (`ldflags`)**:
-   - O `Makefile` injeta versão (`git describe`), hash do commit e data UTC diretamente nas variáveis do pacote `internal/buildinfo`.
+   - O `Makefile` injeta versão Git, hash do commit e data UTC diretamente nas variáveis de `buildinfo`.
 
 4. **Graceful Shutdown**:
-   - O comando raiz captura sinais do sistema (`SIGINT`, `SIGTERM`) através de `signal.NotifyContext` e propaga o contexto (`cmd.Context()`), permitindo interrupções limpas de rotinas em andamento.
+   - Captura de sinais do sistema (`SIGINT`, `SIGTERM`) propagando `context.Context` para cancelar requisições HTTP em andamento.
 
 5. **Logging Estruturado (`log/slog`)**:
-   - Uso da biblioteca padrão de logging estruturado do Go (1.21+), com suporte dinâmico a formatos `text` e `json`, e níveis (`debug`, `info`, `warn`, `error`).
-
-6. **Inversão de Dependências (DIP / Interfaces)**:
-   - Pacotes de domínio em `pkg/` expõem interfaces (ex: `scanner.Scanner`), permitindo mocks limpos e testes sem dependências externas complexas.
+   - Suporte dinâmico a `--verbose` e formatos de log `--log-format text|json`.
 
 ---
 
 ## 🚀 Como Utilizar
 
-### Compilar o binário
+### 1. Compilar o binário
 ```bash
 make build
 ```
 O binário será gerado em `./bin/my-scaner`.
 
-### Executar testes
+### 2. Executar testes
 ```bash
 make test
 ```
 
-### Visualizar ajuda e comandos
+### 3. Configurar a Chave do OpenRouter
+Você pode definir a chave via variável de ambiente:
 ```bash
-./bin/my-scaner --help
+export OPENROUTER_API_KEY="sk-or-v1-..."
+```
+Ou criar um arquivo `config.yaml` baseado em `configs/config.example.yaml`.
+
+### 4. Executar o comando `scan`
+O comando `scan` exige a flag `-p, --path` apontando para a imagem. O arquivo `.md` será gravado no mesmo diretório com o mesmo nome base da imagem:
+
+```bash
+# Extração básica
+./bin/my-scaner scan -p /caminho/para/documento.png
+
+# O arquivo extraído será salvo em:
+# /caminho/para/documento.md
+
+# Usando com modelo específico e chave de API direta:
+./bin/my-scaner scan -p ./nota.jpg --model anthropic/claude-3.5-sonnet --api-key sk-or-v1-...
 ```
 
-### Consultar versão
-```bash
-# Formato texto legível
-./bin/my-scaner version
-
-# Formato JSON (ideal para automações/CI)
-./bin/my-scaner version --json
-```
-
-### Executar varredura (Exemplo)
-```bash
-# Varredura básica
-./bin/my-scaner scan --host 127.0.0.1 --ports 80,443,22
-
-# Com logs verbosos estruturados em JSON
-./bin/my-scaner scan --host 127.0.0.1 --ports 80,443 --verbose --log-format json
-```
+### Formatos de imagem suportados:
+- `.png`
+- `.jpg`, `.jpeg`
+- `.webp`
+- `.gif`
+- `.bmp`
+- `.tiff`, `.tif`

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -9,16 +10,16 @@ import (
 
 // Config representa as opções de configuração do aplicativo.
 type Config struct {
-	LogLevel  string        `mapstructure:"log_level"`
-	LogFormat string        `mapstructure:"log_format"`
-	Scanner   ScannerConfig `mapstructure:"scanner"`
+	LogLevel   string           `mapstructure:"log_level"`
+	LogFormat  string           `mapstructure:"log_format"`
+	OpenRouter OpenRouterConfig `mapstructure:"openrouter"`
 }
 
-// ScannerConfig contém os parâmetros específicos do módulo scanner.
-type ScannerConfig struct {
-	TimeoutSeconds int   `mapstructure:"timeout_seconds"`
-	DefaultPorts   []int `mapstructure:"default_ports"`
-	Concurrency    int   `mapstructure:"concurrency"`
+// OpenRouterConfig contém os parâmetros de conexão com a API do OpenRouter.
+type OpenRouterConfig struct {
+	APIKey  string `mapstructure:"api_key"`
+	Model   string `mapstructure:"model"`
+	BaseURL string `mapstructure:"base_url"`
 }
 
 // Load carrega configurações a partir de arquivo e/ou variáveis de ambiente.
@@ -28,11 +29,10 @@ func Load(cfgFile string) (*Config, error) {
 	// Valores padrão (sensible defaults)
 	v.SetDefault("log_level", "info")
 	v.SetDefault("log_format", "text")
-	v.SetDefault("scanner.timeout_seconds", 3)
-	v.SetDefault("scanner.default_ports", []int{80, 443, 8080})
-	v.SetDefault("scanner.concurrency", 10)
+	v.SetDefault("openrouter.base_url", "https://openrouter.ai/api/v1")
+	v.SetDefault("openrouter.model", "google/gemini-2.0-flash-001")
 
-	// Suporte a variáveis de ambiente: MY_SCANER_LOG_LEVEL, etc.
+	// Suporte a variáveis de ambiente com prefixo: MY_SCANER_OPENROUTER_API_KEY, etc.
 	v.SetEnvPrefix("MY_SCANER")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	v.AutomaticEnv()
@@ -48,7 +48,6 @@ func Load(cfgFile string) (*Config, error) {
 	}
 
 	if err := v.ReadInConfig(); err != nil {
-		// Se o usuário especificou explicitamente um arquivo e ele não existe, retorna erro
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok && cfgFile != "" {
 			return nil, fmt.Errorf("falha ao ler arquivo de configuração: %w", err)
 		}
@@ -57,6 +56,11 @@ func Load(cfgFile string) (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("falha ao decodificar configurações: %w", err)
+	}
+
+	// Fallback para a variável padrão do sistema OPENROUTER_API_KEY caso não configurada via arquivo ou MY_SCANER_
+	if cfg.OpenRouter.APIKey == "" {
+		cfg.OpenRouter.APIKey = os.Getenv("OPENROUTER_API_KEY")
 	}
 
 	return &cfg, nil
