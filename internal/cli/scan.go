@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,10 +13,9 @@ import (
 	"my-scaner/pkg/llm"
 	"my-scaner/pkg/lmstudio"
 	"my-scaner/pkg/openrouter"
-	"my-scaner/pkg/pdf"
 )
 
-func newScanCmd() *cobra.Command {
+func newScanCmd(a *app) *cobra.Command {
 	var (
 		inputPath  string
 		provider   string
@@ -56,15 +54,15 @@ e consolida todo o conteúdo em um único arquivo Markdown (.md) no mesmo diret�
 
 			// 2. Determinação do provedor (flag > config > default "openrouter")
 			selectedProvider := strings.ToLower(provider)
-			if selectedProvider == "" && cfg != nil && cfg.Provider != "" {
-				selectedProvider = strings.ToLower(cfg.Provider)
+			if selectedProvider == "" && a.cfg != nil && a.cfg.Provider != "" {
+				selectedProvider = strings.ToLower(a.cfg.Provider)
 			}
 			if selectedProvider == "" {
 				selectedProvider = "openrouter"
 			}
 
 			// 3. Inicialização do Extractor de acordo com o provedor selecionado
-			extractor, modelName, err := buildExtractor(selectedProvider, model, apiKey, baseURL)
+			extractor, modelName, err := a.buildExtractor(selectedProvider, model, apiKey, baseURL)
 			if err != nil {
 				return err
 			}
@@ -73,10 +71,10 @@ e consolida todo o conteúdo em um único arquivo Markdown (.md) no mesmo diret�
 
 			// 4. Fluxo para PDF vs Imagem direta
 			if fileutil.IsPDF(inputPath) {
-				return processPDF(ctx, cmd, extractor, inputPath, outputPath, dpi, keepImages)
+				return a.processPDF(ctx, cmd, extractor, inputPath, outputPath, dpi, keepImages)
 			}
 
-			return processSingleImage(ctx, cmd, extractor, inputPath, outputPath, selectedProvider, modelName)
+			return a.processSingleImage(ctx, cmd, extractor, inputPath, outputPath, selectedProvider, modelName)
 		},
 	}
 
@@ -93,25 +91,25 @@ e consolida todo o conteúdo em um único arquivo Markdown (.md) no mesmo diret�
 	return cmd
 }
 
-func buildExtractor(provider, modelFlag, apiKeyFlag, baseURLFlag string) (llm.Extractor, string, error) {
+func (a *app) buildExtractor(provider, modelFlag, apiKeyFlag, baseURLFlag string) (llm.Extractor, string, error) {
 	switch provider {
 	case "openrouter":
 		key := apiKeyFlag
-		if key == "" && cfg != nil {
-			key = cfg.OpenRouter.APIKey
+		if key == "" && a.cfg != nil {
+			key = a.cfg.OpenRouter.APIKey
 		}
 		if key == "" {
 			return nil, "", fmt.Errorf("chave de API do OpenRouter não encontrada. Defina OPENROUTER_API_KEY, preencha no arquivo de configuração ou utilize a flag --api-key")
 		}
 
 		selectedModel := modelFlag
-		if selectedModel == "" && cfg != nil && cfg.OpenRouter.Model != "" {
-			selectedModel = cfg.OpenRouter.Model
+		if selectedModel == "" && a.cfg != nil && a.cfg.OpenRouter.Model != "" {
+			selectedModel = a.cfg.OpenRouter.Model
 		}
 
 		endpoint := baseURLFlag
-		if endpoint == "" && cfg != nil && cfg.OpenRouter.BaseURL != "" {
-			endpoint = cfg.OpenRouter.BaseURL
+		if endpoint == "" && a.cfg != nil && a.cfg.OpenRouter.BaseURL != "" {
+			endpoint = a.cfg.OpenRouter.BaseURL
 		}
 
 		client, err := openrouter.NewClient(key,
@@ -125,25 +123,28 @@ func buildExtractor(provider, modelFlag, apiKeyFlag, baseURLFlag string) (llm.Ex
 
 	case "lmstudio":
 		selectedModel := modelFlag
-		if selectedModel == "" && cfg != nil && cfg.LMStudio.Model != "" {
-			selectedModel = cfg.LMStudio.Model
+		if selectedModel == "" && a.cfg != nil && a.cfg.LMStudio.Model != "" {
+			selectedModel = a.cfg.LMStudio.Model
 		}
 
 		endpoint := baseURLFlag
-		if endpoint == "" && cfg != nil && cfg.LMStudio.BaseURL != "" {
-			endpoint = cfg.LMStudio.BaseURL
+		if endpoint == "" && a.cfg != nil && a.cfg.LMStudio.BaseURL != "" {
+			endpoint = a.cfg.LMStudio.BaseURL
 		}
 
 		key := apiKeyFlag
-		if key == "" && cfg != nil {
-			key = cfg.LMStudio.APIKey
+		if key == "" && a.cfg != nil {
+			key = a.cfg.LMStudio.APIKey
 		}
 
-		client := lmstudio.NewClient(
+		client, err := lmstudio.NewClient(
 			lmstudio.WithBaseURL(endpoint),
 			lmstudio.WithModel(selectedModel),
 			lmstudio.WithAPIKey(key),
 		)
+		if err != nil {
+			return nil, "", fmt.Errorf("falha ao inicializar serviço LM Studio: %w", err)
+		}
 		return client, selectedModel, nil
 
 	default:
@@ -151,8 +152,8 @@ func buildExtractor(provider, modelFlag, apiKeyFlag, baseURLFlag string) (llm.Ex
 	}
 }
 
-func processSingleImage(ctx context.Context, cmd *cobra.Command, extractor llm.Extractor, imagePath string, outputPath string, provider string, modelName string) error {
-	slog.Info("Processando imagem com IA", "provedor", provider, "imagem", imagePath, "modelo", modelName)
+func (a *app) processSingleImage(ctx context.Context, cmd *cobra.Command, extractor llm.Extractor, imagePath string, outputPath string, provider string, modelName string) error {
+	a.log.Info("Processando imagem com IA", "provedor", provider, "imagem", imagePath, "modelo", modelName)
 
 	markdownContent, err := extractor.ExtractText(ctx, imagePath)
 	if err != nil {
@@ -163,13 +164,13 @@ func processSingleImage(ctx context.Context, cmd *cobra.Command, extractor llm.E
 		return fmt.Errorf("falha ao gravar arquivo markdown em '%s': %w", outputPath, err)
 	}
 
-	slog.Info("Arquivo Markdown gerado com sucesso", "caminho", outputPath)
+	a.log.Info("Arquivo Markdown gerado com sucesso", "caminho", outputPath)
 	fmt.Fprintf(cmd.OutOrStdout(), "✔ Texto extraído com sucesso!\nArquivo gerado: %s\n", outputPath)
 	return nil
 }
 
-func processPDF(ctx context.Context, cmd *cobra.Command, extractor llm.Extractor, pdfPath string, outputPath string, dpi int, keepImages bool) error {
-	conv, err := pdf.NewPopplerConverter()
+func (a *app) processPDF(ctx context.Context, cmd *cobra.Command, extractor llm.Extractor, pdfPath string, outputPath string, dpi int, keepImages bool) error {
+	conv, err := a.newConverter()
 	if err != nil {
 		return fmt.Errorf("conversor de PDF indisponível: %w", err)
 	}
@@ -192,14 +193,14 @@ func processPDF(ctx context.Context, cmd *cobra.Command, extractor llm.Extractor
 		}()
 	}
 
-	slog.Info("Convertendo páginas do PDF em imagens...", "pdf", pdfPath, "dpi", dpi)
+	a.log.Info("Convertendo páginas do PDF em imagens...", "pdf", pdfPath, "dpi", dpi)
 	pageImages, err := conv.ConvertToImages(ctx, pdfPath, tempDir, dpi)
 	if err != nil {
 		return fmt.Errorf("erro na conversão das páginas do PDF: %w", err)
 	}
 
 	totalPages := len(pageImages)
-	slog.Info("Páginas extraídas com sucesso", "total_paginas", totalPages)
+	a.log.Info("Páginas extraídas com sucesso", "total_paginas", totalPages)
 	fmt.Fprintf(cmd.OutOrStdout(), "📄 Processando PDF com %d página(s)...\n", totalPages)
 
 	var builder strings.Builder
@@ -212,7 +213,7 @@ func processPDF(ctx context.Context, cmd *cobra.Command, extractor llm.Extractor
 		}
 
 		pageNum := idx + 1
-		slog.Info("Extraindo texto da página", "pagina", pageNum, "total", totalPages)
+		a.log.Info("Extraindo texto da página", "pagina", pageNum, "total", totalPages)
 		fmt.Fprintf(cmd.OutOrStdout(), "  ↳ Extraindo página %d/%d...\n", pageNum, totalPages)
 
 		pageMarkdown, err := extractor.ExtractText(ctx, imgFile)
@@ -234,7 +235,7 @@ func processPDF(ctx context.Context, cmd *cobra.Command, extractor llm.Extractor
 		return fmt.Errorf("falha ao gravar arquivo markdown consolidado em '%s': %w", outputPath, err)
 	}
 
-	slog.Info("Arquivo Markdown consolidado do PDF gerado com sucesso", "caminho", outputPath)
+	a.log.Info("Arquivo Markdown consolidado do PDF gerado com sucesso", "caminho", outputPath)
 	if keepImages {
 		fmt.Fprintf(cmd.OutOrStdout(), "🖼 Imagens das páginas salvas em: %s\n", tempDir)
 	}

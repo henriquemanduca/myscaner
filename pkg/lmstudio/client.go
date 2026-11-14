@@ -2,6 +2,7 @@ package lmstudio
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -25,6 +26,8 @@ type Client struct {
 	inner *llm.OpenAICompatibleClient
 }
 
+var _ llm.Extractor = (*Client)(nil)
+
 // ClientOption permite customizar a criação do cliente LM Studio.
 type ClientOption func(*clientConfig)
 
@@ -34,18 +37,25 @@ type clientConfig struct {
 	apiKey     string
 	httpClient *http.Client
 	timeout    time.Duration
+	timeoutSet bool
+	err        error
 }
 
 // WithBaseURL define a URL base da API do LM Studio (ex: http://localhost:1234/v1).
 func WithBaseURL(url string) ClientOption {
 	return func(c *clientConfig) {
-		if url != "" {
-			c.baseURL = strings.TrimRight(url, "/")
+		if url == "" {
+			return
 		}
+		if err := llm.ValidateBaseURL(url); err != nil {
+			c.err = err
+			return
+		}
+		c.baseURL = strings.TrimRight(url, "/")
 	}
 }
 
-// WithModel define o identificador do modelo carregado no LM Studio.
+// WithModel define o identificador do modelo carregado no LM Studio. Valor vazio mantém o padrão.
 func WithModel(model string) ClientOption {
 	return func(c *clientConfig) {
 		if model != "" {
@@ -75,12 +85,13 @@ func WithTimeout(timeout time.Duration) ClientOption {
 	return func(c *clientConfig) {
 		if timeout > 0 {
 			c.timeout = timeout
+			c.timeoutSet = true
 		}
 	}
 }
 
 // NewClient cria uma nova instância do cliente para o LM Studio local.
-func NewClient(opts ...ClientOption) *Client {
+func NewClient(opts ...ClientOption) (*Client, error) {
 	cfg := &clientConfig{
 		baseURL: DefaultBaseURL,
 		model:   DefaultModel,
@@ -91,11 +102,19 @@ func NewClient(opts ...ClientOption) *Client {
 		opt(cfg)
 	}
 
-	if cfg.httpClient == nil {
-		cfg.httpClient = &http.Client{Timeout: cfg.timeout}
+	if cfg.err != nil {
+		return nil, cfg.err
 	}
 
-	inner := llm.NewOpenAICompatibleClient(llm.Config{
+	if cfg.httpClient == nil {
+		cfg.httpClient = &http.Client{Timeout: cfg.timeout}
+	} else if cfg.timeoutSet {
+		cloned := *cfg.httpClient
+		cloned.Timeout = cfg.timeout
+		cfg.httpClient = &cloned
+	}
+
+	inner, err := llm.NewOpenAICompatibleClient(llm.Config{
 		ProviderName: "LM Studio",
 		BaseURL:      cfg.baseURL,
 		APIKey:       cfg.apiKey,
@@ -103,8 +122,11 @@ func NewClient(opts ...ClientOption) *Client {
 		HTTPClient:   cfg.httpClient,
 		Timeout:      cfg.timeout,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("falha ao configurar cliente LM Studio: %w", err)
+	}
 
-	return &Client{inner: inner}
+	return &Client{inner: inner}, nil
 }
 
 // ExtractText envia a imagem para o LM Studio local e retorna o texto extraído em Markdown.

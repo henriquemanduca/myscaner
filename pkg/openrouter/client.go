@@ -25,6 +25,8 @@ type Client struct {
 	inner *llm.OpenAICompatibleClient
 }
 
+var _ llm.Extractor = (*Client)(nil)
+
 // ClientOption permite customizar a criação do cliente.
 type ClientOption func(*clientConfig)
 
@@ -32,18 +34,24 @@ type clientConfig struct {
 	baseURL    string
 	model      string
 	httpClient *http.Client
+	err        error
 }
 
 // WithBaseURL define uma URL base alternativa.
 func WithBaseURL(url string) ClientOption {
 	return func(c *clientConfig) {
-		if url != "" {
-			c.baseURL = strings.TrimRight(url, "/")
+		if url == "" {
+			return
 		}
+		if err := llm.ValidateBaseURL(url); err != nil {
+			c.err = err
+			return
+		}
+		c.baseURL = strings.TrimRight(url, "/")
 	}
 }
 
-// WithModel define o modelo a ser utilizado na requisição.
+// WithModel define o modelo a ser utilizado na requisição. Valor vazio mantém o padrão.
 func WithModel(model string) ClientOption {
 	return func(c *clientConfig) {
 		if model != "" {
@@ -79,7 +87,11 @@ func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
 		opt(cfg)
 	}
 
-	inner := llm.NewOpenAICompatibleClient(llm.Config{
+	if cfg.err != nil {
+		return nil, cfg.err
+	}
+
+	inner, err := llm.NewOpenAICompatibleClient(llm.Config{
 		ProviderName: "OpenRouter",
 		BaseURL:      cfg.baseURL,
 		APIKey:       apiKey,
@@ -89,6 +101,9 @@ func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
 			"X-Title": "my-scaner",
 		},
 	})
+	if err != nil {
+		return nil, fmt.Errorf("falha ao configurar cliente OpenRouter: %w", err)
+	}
 
 	return &Client{inner: inner}, nil
 }

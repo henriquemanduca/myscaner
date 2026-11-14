@@ -12,6 +12,7 @@ import (
 
 	"my-scaner/internal/config"
 	"my-scaner/internal/logger"
+	"my-scaner/pkg/pdf"
 )
 
 type globalFlags struct {
@@ -20,13 +21,20 @@ type globalFlags struct {
 	logFormat string
 }
 
-var (
-	flags globalFlags
-	cfg   *config.Config
-	log   *slog.Logger
-)
+type app struct {
+	cfg          *config.Config
+	log          *slog.Logger
+	newConverter func() (pdf.Converter, error)
+}
 
 func newRootCmd() *cobra.Command {
+	var flags globalFlags
+	a := &app{
+		newConverter: func() (pdf.Converter, error) {
+			return pdf.NewPopplerConverter()
+		},
+	}
+
 	rootCmd := &cobra.Command{
 		Use:   "my-scaner",
 		Short: "my-scaner é uma ferramenta CLI moderna e extensível em Go",
@@ -35,11 +43,11 @@ estruturado segundo os padrões de design e boas práticas do ecossistema Go.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			var err error
-			cfg, err = config.Load(flags.cfgFile)
+			cfg, err := config.Load(flags.cfgFile)
 			if err != nil {
 				return fmt.Errorf("erro ao inicializar configuração: %w", err)
 			}
+			a.cfg = cfg
 
 			logLevel := cfg.LogLevel
 			if flags.verbose {
@@ -51,12 +59,12 @@ estruturado segundo os padrões de design e boas práticas do ecossistema Go.`,
 				format = cfg.LogFormat
 			}
 
-			log = logger.New(logger.Config{
+			a.log = logger.New(logger.Config{
 				Level:  logLevel,
 				Format: format,
 				Output: os.Stderr,
 			})
-			slog.SetDefault(log)
+			slog.SetDefault(a.log)
 
 			return nil
 		},
@@ -68,7 +76,7 @@ estruturado segundo os padrões de design e boas práticas do ecossistema Go.`,
 
 	// Registra subcomandos
 	rootCmd.AddCommand(newVersionCmd())
-	rootCmd.AddCommand(newScanCmd())
+	rootCmd.AddCommand(newScanCmd(a))
 
 	return rootCmd
 }

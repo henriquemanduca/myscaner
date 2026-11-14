@@ -9,8 +9,10 @@ import (
 	"strings"
 )
 
-// SupportedImageExtensions lista as extensões de imagens suportadas.
-var SupportedImageExtensions = map[string]string{
+// MaxImageFileSize é o tamanho máximo aceito para uma imagem de entrada (50 MiB).
+const MaxImageFileSize int64 = 50 << 20
+
+var supportedImageExtensions = map[string]string{
 	".png":  "image/png",
 	".jpg":  "image/jpeg",
 	".jpeg": "image/jpeg",
@@ -19,6 +21,15 @@ var SupportedImageExtensions = map[string]string{
 	".bmp":  "image/bmp",
 	".tiff": "image/tiff",
 	".tif":  "image/tiff",
+}
+
+// SupportedImageExtensions retorna uma cópia das extensões de imagem suportadas.
+func SupportedImageExtensions() map[string]string {
+	out := make(map[string]string, len(supportedImageExtensions))
+	for ext, mime := range supportedImageExtensions {
+		out[ext] = mime
+	}
+	return out
 }
 
 // IsPDF verifica se o arquivo possui extensão .pdf.
@@ -45,9 +56,9 @@ func ValidateInputFile(path string) error {
 		return nil
 	}
 
-	if _, ok := SupportedImageExtensions[ext]; !ok {
-		supportedList := make([]string, 0, len(SupportedImageExtensions)+1)
-		for k := range SupportedImageExtensions {
+	if _, ok := supportedImageExtensions[ext]; !ok {
+		supportedList := make([]string, 0, len(supportedImageExtensions)+1)
+		for k := range supportedImageExtensions {
 			supportedList = append(supportedList, k)
 		}
 		supportedList = append(supportedList, ".pdf")
@@ -72,9 +83,9 @@ func ValidateImageFile(path string) error {
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
-	if _, ok := SupportedImageExtensions[ext]; !ok {
-		supportedList := make([]string, 0, len(SupportedImageExtensions))
-		for k := range SupportedImageExtensions {
+	if _, ok := supportedImageExtensions[ext]; !ok {
+		supportedList := make([]string, 0, len(supportedImageExtensions))
+		for k := range supportedImageExtensions {
 			supportedList = append(supportedList, k)
 		}
 		return fmt.Errorf("tipo de arquivo '%s' não suportado. Tipos válidos: %s", ext, strings.Join(supportedList, ", "))
@@ -89,13 +100,21 @@ func EncodeImageToBase64DataURL(path string) (string, error) {
 		return "", err
 	}
 
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("falha ao inspecionar imagem: %w", err)
+	}
+	if info.Size() > MaxImageFileSize {
+		return "", fmt.Errorf("imagem '%s' excede o tamanho máximo de %d bytes", path, MaxImageFileSize)
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", fmt.Errorf("falha ao ler bytes da imagem: %w", err)
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
-	mimeType, ok := SupportedImageExtensions[ext]
+	mimeType, ok := supportedImageExtensions[ext]
 	if !ok || mimeType == "" {
 		mimeType = http.DetectContentType(data)
 	}

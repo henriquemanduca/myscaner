@@ -7,12 +7,18 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
 
 	"my-scaner/pkg/fileutil"
 )
+
+// maxResponseBodySize limita a leitura da resposta HTTP para evitar consumo ilimitado de memória (32 MiB).
+const maxResponseBodySize int64 = 32 << 20
+
+var markdownFenceRegex = regexp.MustCompile("(?s)^```(?:markdown|md)?\\r?\\n(.*?)\\r?\\n```$")
 
 // DefaultPrompt é a instrução padrão de sistema enviada para modelos multimodais de OCR.
 const DefaultPrompt = "Você é um especialista em OCR e digitalização de documentos. " +
@@ -31,6 +37,8 @@ type OpenAICompatibleClient struct {
 	Prompt       string
 }
 
+var _ Extractor = (*OpenAICompatibleClient)(nil)
+
 // Config contém parâmetros de inicialização do cliente compatível com OpenAI.
 type Config struct {
 	ProviderName string
@@ -43,8 +51,36 @@ type Config struct {
 	Timeout      time.Duration
 }
 
+// ValidateBaseURL verifica se a URL base é absoluta e utiliza http ou https.
+func ValidateBaseURL(rawURL string) error {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return fmt.Errorf("URL base inválida %q: %w", rawURL, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("URL base deve utilizar http ou https: %q", rawURL)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("URL base sem host: %q", rawURL)
+	}
+	return nil
+}
+
 // NewOpenAICompatibleClient cria e configura uma nova instância de cliente.
-func NewOpenAICompatibleClient(cfg Config) *OpenAICompatibleClient {
+func NewOpenAICompatibleClient(cfg Config) (*OpenAICompatibleClient, error) {
+	baseURL := strings.TrimSpace(cfg.BaseURL)
+	if baseURL == "" {
+		return nil, fmt.Errorf("a URL base do provedor '%s' é obrigatória", cfg.ProviderName)
+	}
+	if err := ValidateBaseURL(baseURL); err != nil {
+		return nil, err
+	}
+
+	model := strings.TrimSpace(cfg.Model)
+	if model == "" {
+		return nil, fmt.Errorf("o modelo do provedor '%s' é obrigatório", cfg.ProviderName)
+	}
+
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = 120 * time.Second
@@ -62,13 +98,13 @@ func NewOpenAICompatibleClient(cfg Config) *OpenAICompatibleClient {
 
 	return &OpenAICompatibleClient{
 		ProviderName: cfg.ProviderName,
-		BaseURL:      strings.TrimRight(cfg.BaseURL, "/"),
+		BaseURL:      strings.TrimRight(baseURL, "/"),
 		APIKey:       cfg.APIKey,
-		Model:        cfg.Model,
+		Model:        model,
 		HTTPClient:   httpClient,
 		ExtraHeaders: cfg.ExtraHeaders,
 		Prompt:       prompt,
-	}
+	}, nil
 }
 
 type chatCompletionRequest struct {
@@ -157,9 +193,12 @@ func (c *OpenAICompatibleClient) ExtractText(ctx context.Context, imagePath stri
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize+1))
 	if err != nil {
 		return "", fmt.Errorf("falha ao ler resposta da API de '%s': %w", c.ProviderName, err)
+	}
+	if int64(len(respBody)) > maxResponseBodySize {
+		return "", fmt.Errorf("resposta da API de '%s' excede o limite de %d bytes", c.ProviderName, maxResponseBodySize)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -185,8 +224,7 @@ func (c *OpenAICompatibleClient) ExtractText(ctx context.Context, imagePath stri
 
 // SanitizeMarkdownOutput remove blocos externos ```markdown ... ``` caso o modelo os tenha adicionado.
 func SanitizeMarkdownOutput(content string) string {
-	re := regexp.MustCompile("(?s)^```(?:markdown|md)?\\r?\\n(.*?)\\r?\\n```$")
-	if matches := re.FindStringSubmatch(content); len(matches) > 1 {
+	if matches := markdownFenceRegex.FindStringSubmatch(content); len(matches) > 1 {
 		return strings.TrimSpace(matches[1])
 	}
 	return content

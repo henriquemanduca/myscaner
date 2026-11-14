@@ -114,12 +114,28 @@ func Load(cfgFile string) (*Config, error) {
 }
 
 func addConfigPaths(v *viper.Viper) {
-	v.AddConfigPath(".")
+	seen := make(map[string]struct{})
+	add := func(path string) {
+		if path == "" {
+			return
+		}
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			abs = path
+		}
+		if _, ok := seen[abs]; ok {
+			return
+		}
+		seen[abs] = struct{}{}
+		v.AddConfigPath(path)
+	}
+
+	add(".")
 	if dir, err := DefaultConfigDir(); err == nil {
-		v.AddConfigPath(dir)
+		add(dir)
 	}
 	if home, err := os.UserHomeDir(); err == nil {
-		v.AddConfigPath(filepath.Join(home, ".config", "my-scaner"))
+		add(filepath.Join(home, ".config", "my-scaner"))
 	}
-	v.AddConfigPath("/etc/my-scaner")
+	add("/etc/my-scaner")
 }

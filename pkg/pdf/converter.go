@@ -9,7 +9,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
+
+// DefaultConversionTimeout é o tempo máximo padrão para converter um PDF em imagens.
+const DefaultConversionTimeout = 5 * time.Minute
 
 // Converter define a interface para conversão de documentos PDF em imagens por página.
 type Converter interface {
@@ -19,15 +23,38 @@ type Converter interface {
 // PopplerConverter implementa a conversão de PDF utilizando o utilitário pdftoppm.
 type PopplerConverter struct {
 	binaryPath string
+	timeout    time.Duration
+}
+
+var _ Converter = (*PopplerConverter)(nil)
+
+// Option permite customizar a criação do conversor.
+type Option func(*PopplerConverter)
+
+// WithTimeout define o tempo máximo de execução do pdftoppm.
+func WithTimeout(timeout time.Duration) Option {
+	return func(c *PopplerConverter) {
+		if timeout > 0 {
+			c.timeout = timeout
+		}
+	}
 }
 
 // NewPopplerConverter instancia o conversor verificando se o utilitário pdftoppm está disponível.
-func NewPopplerConverter() (*PopplerConverter, error) {
+func NewPopplerConverter(opts ...Option) (*PopplerConverter, error) {
 	path, err := exec.LookPath("pdftoppm")
 	if err != nil {
 		return nil, fmt.Errorf("utilitário 'pdftoppm' não encontrado no PATH. Instale o pacote 'poppler-utils' (ex: sudo apt install poppler-utils): %w", err)
 	}
-	return &PopplerConverter{binaryPath: path}, nil
+
+	conv := &PopplerConverter{
+		binaryPath: path,
+		timeout:    DefaultConversionTimeout,
+	}
+	for _, opt := range opts {
+		opt(conv)
+	}
+	return conv, nil
 }
 
 // ConvertToImages converte todas as páginas de um PDF em imagens PNG no outputDir.
@@ -53,9 +80,19 @@ func (c *PopplerConverter) ConvertToImages(ctx context.Context, pdfPath string, 
 		prefix,
 	}
 
-	cmd := exec.CommandContext(ctx, c.binaryPath, args...)
+	timeout := c.timeout
+	if timeout <= 0 {
+		timeout = DefaultConversionTimeout
+	}
+	convCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(convCtx, c.binaryPath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if convCtx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("conversão do PDF excedeu o tempo limite de %s: %w", timeout, convCtx.Err())
+		}
 		return nil, fmt.Errorf("falha ao executar pdftoppm (%w): %s", err, string(output))
 	}
 

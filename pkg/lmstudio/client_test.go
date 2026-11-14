@@ -45,12 +45,15 @@ func TestLMStudio_ExtractText_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := lmstudio.NewClient(
+	client, err := lmstudio.NewClient(
 		lmstudio.WithBaseURL(server.URL+"/v1"),
 		lmstudio.WithModel("qwen2.5-vl-7b-instruct"),
 		lmstudio.WithHTTPClient(server.Client()),
 		lmstudio.WithTimeout(10*time.Second),
 	)
+	if err != nil {
+		t.Fatalf("erro ao criar cliente LM Studio: %v", err)
+	}
 
 	result, err := client.ExtractText(context.Background(), imgPath)
 	if err != nil {
@@ -79,12 +82,15 @@ func TestLMStudio_ExtractText_ServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := lmstudio.NewClient(
+	client, err := lmstudio.NewClient(
 		lmstudio.WithBaseURL(server.URL+"/v1"),
 		lmstudio.WithHTTPClient(server.Client()),
 	)
+	if err != nil {
+		t.Fatalf("erro ao criar cliente LM Studio: %v", err)
+	}
 
-	_, err := client.ExtractText(context.Background(), imgPath)
+	_, err = client.ExtractText(context.Background(), imgPath)
 	if err == nil {
 		t.Fatal("esperava erro ao receber 500 do LM Studio, obteve nil")
 	}

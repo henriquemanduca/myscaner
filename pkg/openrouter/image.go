@@ -3,19 +3,31 @@ package openrouter
 import "my-scaner/pkg/fileutil"
 
 // SupportedImageExtensions reexporta as extensões suportadas de fileutil para manter compatibilidade.
-var SupportedImageExtensions = fileutil.SupportedImageExtensions
+func SupportedImageExtensions() map[string]string {
+	return fileutil.SupportedImageExtensions()
+}
 
 // IsPDF reexporta a função de verificação de PDF.
-var IsPDF = fileutil.IsPDF
+func IsPDF(path string) bool {
+	return fileutil.IsPDF(path)
+}
 
 // ValidateInputFile reexporta a validação de arquivo de entrada.
-var ValidateInputFile = fileutil.ValidateInputFile
+func ValidateInputFile(path string) error {
+	return fileutil.ValidateInputFile(path)
+}
 
 // ValidateImageFile reexporta a validação de imagem.
-var ValidateImageFile = fileutil.ValidateImageFile
+func ValidateImageFile(path string) error {
+	return fileutil.ValidateImageFile(path)
+}
 
 // EncodeImageToBase64DataURL reexporta a codificação de imagem em Data URL.
-var EncodeImageToBase64DataURL = fileutil.EncodeImageToBase64DataURL
+func EncodeImageToBase64DataURL(path string) (string, error) {
+	return fileutil.EncodeImageToBase64DataURL(path)
+}
 
 // OutputMarkdownPath reexporta o cálculo do caminho de saída markdown.
-var OutputMarkdownPath = fileutil.OutputMarkdownPath
+func OutputMarkdownPath(inputPath string) string {
+	return fileutil.OutputMarkdownPath(inputPath)
+}
