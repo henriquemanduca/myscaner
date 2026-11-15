@@ -208,7 +208,7 @@ build_binary() {
             return 0
         else
             error "O compilador 'go' não foi encontrado no sistema e nenhum binário foi localizado em bin/$APP_NAME."
-            error "Instale o Go 1.21+ (https://golang.org/dl/) para compilar a partir do código-fonte."
+            error "Instale o Go 1.27+ (https://golang.org/dl/) para compilar a partir do código-fonte."
             exit 1
         fi
     fi

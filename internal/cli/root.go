@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"scaner-cli/internal/buildinfo"
 	"scaner-cli/internal/config"
 	"scaner-cli/internal/logger"
 	"scaner-cli/pkg/pdf"
@@ -37,8 +38,9 @@ func newRootCmd() *cobra.Command {
 	}
 
 	rootCmd := &cobra.Command{
-		Use:   "scaner-cli",
-		Short: "Extrai texto de imagens e PDFs via IA (OpenRouter ou LM Studio) em Markdown",
+		Use:     "scaner-cli",
+		Version: buildinfo.Get().String(),
+		Short:   "Extrai texto de imagens e PDFs via IA (OpenRouter ou LM Studio) em Markdown",
 		Long: `scaner-cli - Extrai texto de imagens e documentos PDF via IA e salva o resultado
 em formato Markdown (.md) no mesmo diretório e com o mesmo nome base do arquivo de entrada.
 Suporta provedores de IA em nuvem (OpenRouter) ou modelos locais (LM Studio).
@@ -101,6 +103,7 @@ e consolida todo o conteúdo em um único arquivo Markdown.`,
 
 	// Registra subcomandos
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
 	return rootCmd
 }

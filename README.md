@@ -133,3 +133,30 @@ export OPENROUTER_API_KEY="sk-or-v1-..."
 - `--base-url`: Endpoint customizado da API.
 - `--dpi`: Resolução em DPI para páginas de PDF (padrão: 150).
 - `--keep-images`: Salva as páginas convertidas em pasta local.
+
+#### 5. Versão
+```bash
+scaner-cli --version          # linha única com versão, commit, data e runtime
+scaner-cli version --json     # metadados de build em JSON
+```
+
+---
+
+## 🧪 Desenvolvimento
+
+Requisitos: Go na versão declarada em `go.mod` e, para PDFs, `poppler-utils` (`pdftoppm`).
+
+```bash
+make build        # compila para ./bin/scaner-cli
+make test         # go test -race -count=1 ./...
+make test-cover   # coverage.out + coverage.html
+make fmt          # go fmt + go vet
+make lint         # golangci-lint (config .golangci.yml)
+make check        # fmt + test
+make build-all    # binários Linux/macOS/Windows em ./bin
+make checksums    # SHA-256 dos binários de release
+```
+
+Os testes de configuração são herméticos: `HOME` e `XDG_CONFIG_HOME` são
+redirecionados para um diretório temporário, de modo que o `config.yaml` real
+do desenvolvedor nunca influencia o resultado.

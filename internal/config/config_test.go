@@ -6,11 +6,21 @@ import (
 	"testing"
 )
 
-func TestLoad_Defaults(t *testing.T) {
+// isolateConfig makes config discovery hermetic: an empty temporary HOME/XDG
+// tree prevents the test from reading the developer's real config.yaml.
+func isolateConfig(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	t.Setenv("MY_SCANER_OPENROUTER_MODEL", "")
 	t.Setenv("MY_SCANER_LOG_LEVEL", "")
 	t.Setenv("MY_SCANER_LOG_FORMAT", "")
 	t.Setenv("MY_SCANER_PROVIDER", "")
+}
+
+func TestLoad_Defaults(t *testing.T) {
+	isolateConfig(t)
 
 	cfg, err := Load("")
 	if err != nil {
@@ -49,10 +59,7 @@ func TestLoad_RejectsJSONFile(t *testing.T) {
 }
 
 func TestLoad_CustomYAMLFile(t *testing.T) {
-	t.Setenv("MY_SCANER_OPENROUTER_MODEL", "")
-	t.Setenv("MY_SCANER_LOG_LEVEL", "")
-	t.Setenv("MY_SCANER_LOG_FORMAT", "")
-	t.Setenv("MY_SCANER_PROVIDER", "")
+	isolateConfig(t)
 
 	tempDir := t.TempDir()
 	configFile := filepath.Join(tempDir, "config.yaml")

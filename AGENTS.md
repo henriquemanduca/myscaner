@@ -8,7 +8,7 @@ Este documento contém diretrizes, arquitetura e convenções técnicas para gui
 
 **scaner-cli** é uma ferramenta de linha de comando (CLI) desenvolvida em **Go** para extração de texto de documentos **PDF** e **imagens** (OCR) estruturada em Markdown via **OpenRouter** (nuvem) ou **LM Studio** (local/offline), projetada com foco em alta performance, modularidade e manutenibilidade.
 
-- **Linguagem**: Go 1.21+ (utilizando recursos modernos como `log/slog`).
+- **Linguagem**: Go 1.27+ (versão canônica em `go.mod`; utiliza recursos modernos como `log/slog`).
 - **CLI Framework**: [`spf13/cobra`](https://github.com/spf13/cobra).
 - **Configuração**: [`spf13/viper`](https://github.com/spf13/viper) com suporte exclusivo a arquivos **YAML** (`config.yaml`), variáveis de ambiente (`OPENROUTER_API_KEY`, `MY_SCANER_*`) e valores padrão.
 - **Logging**: `log/slog` nativo (suporte a texto e JSON estruturado).
@@ -91,10 +91,31 @@ Ao propor ou implementar alterações, siga estritamente as seguintes regras:
 
 | Comando | Descrição |
 |---|---|
+| `make help` | Lista os targets disponíveis (target padrão) |
 | `make build` | Compila o binário aplicando `-ldflags` para `buildinfo` em `./bin/scaner-cli` |
-| `make test` | Executa todos os testes unitários com race detector (`go test -race -v ./...`) |
+| `make test` | Executa todos os testes com race detector e sem cache (`go test -race -count=1 ./...`) |
+| `make test-cover` | Gera `coverage.out` e `coverage.html` |
+| `make fmt` | Executa `go fmt ./...` e `go vet ./...` |
+| `make lint` | Executa `golangci-lint run ./...` (config em `.golangci.yml`) |
+| `make check` | Executa `fmt` + `test` (gate local completo) |
 | `make clean` | Remove o diretório `./bin` e artefatos de compilação |
 | `make install` | Executa `./install.sh` para instalar binário, configs e autocompleções |
 | `make uninstall` | Executa `./install.sh --uninstall` para remover o utilitário |
 | `./bin/scaner-cli -p <arquivo>` | Extrai texto de imagem ou PDF via OpenRouter |
 | `./bin/scaner-cli -p <arquivo> --provider lmstudio` | Extrai texto de imagem ou PDF via LM Studio local |
+| `./bin/scaner-cli --version` | Exibe versão, commit, data de build e runtime |
+
+---
+
+## 📐 Padrões Compartilhados
+
+Este projeto segue o contrato de CLIs Go do workspace:
+[`docs/go-cli-project-standards.md`](../docs/go-cli-project-standards.md).
+
+- Entrypoint mínimo em `cmd/scaner-cli/main.go`; `main` é dono de `os.Exit`.
+- Códigos de saída: `0` sucesso, `1` erro de execução, `2` erro de uso.
+- Build em `bin/`; metadados de build em `internal/buildinfo`.
+- Targets obrigatórios: `help` (padrão), `build`, `run`, `test`, `test-cover`,
+  `fmt`, `vet`, `lint`, `check`, `clean`, `install`, `uninstall`.
+- Testes sempre com `-race -count=1` e herméticos (nunca leem o `$HOME` real).
+- `make check` deve passar antes do commit.

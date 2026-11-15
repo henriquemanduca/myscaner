@@ -1,0 +1,115 @@
+# golangci-lint configuration for scaner-cli.
+# Baseline shared by all Go CLI projects; see docs/go-cli-project-standards.md.
+# See: https://golangci-lint.run/usage/configuration/
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gocritic
+    - misspell
+    - revive
+    - unconvert
+    - unparam
+    - copyloopvar
+  settings:
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    gocritic:
+      enabled-checks:
+        - appendAssign
+        - argOrder
+        - badCond
+        - caseOrder
+        - codegenComment
+        - commentedOutCode
+        - deprecatedComment
+        - dupArg
+        - dupBranchBody
+        - dupCase
+        - dupSubExpr
+        - exitAfterDefer
+        - flagDeref
+        - flagName
+        - nilValReturn
+        - offBy1
+        - sloppyReassign
+        - weakCond
+        - assignOp
+        - boolExprSimplify
+        - builtinShadow
+        - captLocal
+        - commentFormatting
+        - commentedOutImport
+        - defaultCaseOrder
+        - deferUnlambda
+        - docStub
+        - emptyFallthrough
+        - hexLiteral
+        - ifElseChain
+        - importShadow
+        - initClause
+        - methodExprCall
+        - nestingReduce
+        - newDeref
+        - octalLiteral
+        - ptrToRefParam
+        - redundantSprint
+        - regexpMust
+        - singleCaseSwitch
+        - sloppyLen
+        - stringXbytes
+        - switchTrue
+        - typeAssertChain
+        - typeSwitchVar
+        - underef
+        - unlabelStmt
+        - unlambda
+        - unslice
+        - valSwap
+        - whyNoLint
+        - yodaStyleExpr
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - scaner-cli
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
