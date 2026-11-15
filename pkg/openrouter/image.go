@@ -1,6 +1,6 @@
 package openrouter
 
-import "my-scaner/pkg/fileutil"
+import "scaner-cli/pkg/fileutil"
 
 // SupportedImageExtensions reexporta as extensões suportadas de fileutil para manter compatibilidade.
 func SupportedImageExtensions() map[string]string {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"my-scaner/internal/buildinfo"
+	"scaner-cli/internal/buildinfo"
 )
 
 func newVersionCmd() *cobra.Command {

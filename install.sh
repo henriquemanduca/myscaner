@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script de Instalação e Gerenciamento do my-scaner para Sistemas Linux
+# Script de Instalação e Gerenciamento do scaner-cli para Sistemas Linux
 # ==============================================================================
 
 set -euo pipefail
 
-APP_NAME="my-scaner"
+APP_NAME="scaner-cli"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Configuração de cores
@@ -52,7 +52,7 @@ Script para instalação e desinstalação automatizada do ${APP_NAME} em sistem
 OPÇÕES DE INSTALAÇÃO:
   -u, --user              Instalação local para o usuário atual (~/.local/bin) [Padrão para não-root]
   -s, --system            Instalação em nível de sistema (/usr/local/bin) [Padrão para root/sudo]
-  -p, --prefix <DIR>      Define um diretório base (<DIR>/bin e <DIR>/etc/my-scaner)
+  -p, --prefix <DIR>      Define um diretório base (<DIR>/bin e <DIR>/etc/scaner-cli)
   -b, --bindir <DIR>      Define explicitamente o diretório do binário
   -c, --config-dir <DIR>  Define explicitamente o diretório de configurações
       --no-config         Não cria o arquivo de configuração de exemplo
@@ -221,10 +221,10 @@ build_binary() {
         version="$(git -C "$SCRIPT_DIR" describe --tags --always --dirty 2>/dev/null || echo "v0.1.0-dev")"
         commit="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "none")"
         date="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-        ldflags="-w -s -X 'my-scaner/internal/buildinfo.Version=${version}' -X 'my-scaner/internal/buildinfo.Commit=${commit}' -X 'my-scaner/internal/buildinfo.Date=${date}'"
+        ldflags="-w -s -X 'scaner-cli/internal/buildinfo.Version=${version}' -X 'scaner-cli/internal/buildinfo.Commit=${commit}' -X 'scaner-cli/internal/buildinfo.Date=${date}'"
 
         mkdir -p "$SCRIPT_DIR/bin"
-        go build -C "$SCRIPT_DIR" -ldflags "$ldflags" -o "bin/$APP_NAME" ./cmd/my-scaner/main.go
+        go build -C "$SCRIPT_DIR" -ldflags "$ldflags" -o "bin/$APP_NAME" ./cmd/scaner-cli/main.go
     fi
 
     success "Binário compilado com sucesso em: $binary_path"
@@ -443,7 +443,7 @@ main() {
     echo "     (edite este arquivo para ajustar provedor ativo, modelo e chave de API)"
     echo "  2. Teste o utilitário executando:"
     echo "     $APP_NAME --help"
-    echo "     $APP_NAME scan -p /caminho/para/documento.pdf"
+    echo "     $APP_NAME -p /caminho/para/documento.pdf"
 }
 
 main "$@"

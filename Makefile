@@ -1,7 +1,7 @@
-BINARY_NAME := my-scaner
-MODULE_PATH := my-scaner
+BINARY_NAME := scaner-cli
+MODULE_PATH := scaner-cli
 BUILD_DIR := bin
-ENTRYPOINT := cmd/my-scaner/main.go
+ENTRYPOINT := cmd/scaner-cli/main.go
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "v0.1.0-dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
@@ -24,7 +24,7 @@ build: ## Compila o binário aplicando ldflags de versão
 	go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) $(ENTRYPOINT)
 	@echo "Binário compilado em $(BUILD_DIR)/$(BINARY_NAME)"
 
-run: ## Executa a CLI localmente (ex: make run ARGS="scan --host localhost")
+run: ## Executa a CLI localmente (ex: make run ARGS="-p ./documento.pdf")
 	go run -ldflags "$(LDFLAGS)" $(ENTRYPOINT) $(ARGS)
 
 test: ## Executa os testes unitários com detecção de data race
@@ -33,8 +33,8 @@ test: ## Executa os testes unitários com detecção de data race
 clean: ## Remove binários e artefatos de build
 	rm -rf $(BUILD_DIR)
 
-install: build ## Instala o my-scaner no sistema via install.sh
+install: build ## Instala o scaner-cli no sistema via install.sh
 	@./install.sh $(ARGS)
 
-uninstall: ## Desinstala o my-scaner via install.sh
+uninstall: ## Desinstala o scaner-cli via install.sh
 	@./install.sh --uninstall $(ARGS)

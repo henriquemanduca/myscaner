@@ -1,12 +1,12 @@
-# Guia para Agentes de IA (AGENTS.md) - my-scaner
+# Guia para Agentes de IA (AGENTS.md) - scaner-cli
 
-Este documento contém diretrizes, arquitetura e convenções técnicas para guiar agentes de IA e desenvolvedores ao contribuir ou estender o projeto **my-scaner**.
+Este documento contém diretrizes, arquitetura e convenções técnicas para guiar agentes de IA e desenvolvedores ao contribuir ou estender o projeto **scaner-cli**.
 
 ---
 
 ## 📌 Visão Geral do Projeto
 
-**my-scaner** é uma ferramenta de linha de comando (CLI) desenvolvida em **Go** para extração de texto de documentos **PDF** e **imagens** (OCR) estruturada em Markdown via **OpenRouter** (nuvem) ou **LM Studio** (local/offline), projetada com foco em alta performance, modularidade e manutenibilidade.
+**scaner-cli** é uma ferramenta de linha de comando (CLI) desenvolvida em **Go** para extração de texto de documentos **PDF** e **imagens** (OCR) estruturada em Markdown via **OpenRouter** (nuvem) ou **LM Studio** (local/offline), projetada com foco em alta performance, modularidade e manutenibilidade.
 
 - **Linguagem**: Go 1.21+ (utilizando recursos modernos como `log/slog`).
 - **CLI Framework**: [`spf13/cobra`](https://github.com/spf13/cobra).
@@ -19,13 +19,13 @@ Este documento contém diretrizes, arquitetura e convenções técnicas para gui
 ## 🏗️ Arquitetura e Estrutura de Diretórios
 
 ```text
-my-scaner/
+scaner-cli/
 ├── cmd/
-│   └── my-scaner/
+│   └── scaner-cli/
 │       └── main.go              # Entrypoint mínimo: apenas chama cli.Execute() e trata código de saída
 ├── internal/                    # Pacotes privados da aplicação (não importáveis externamente)
 │   ├── buildinfo/               # Metadados de versão/build injetados via ldflags
-│   ├── cli/                     # Definição e registro de comandos Cobra (root, scan, version)
+│   ├── cli/                     # Definição e registro de comandos Cobra (root/OCR, version)
 │   ├── config/                  # Mapeamento e validação de configurações (Viper)
 │   │   ├── config.go
 │   │   └── config_test.go
@@ -62,7 +62,7 @@ my-scaner/
 Ao propor ou implementar alterações, siga estritamente as seguintes regras:
 
 ### 1. Ponto de Entrada Mínimo (`cmd/`)
-- Nunca coloque lógica de negócios ou inicialização complexa em `cmd/my-scaner/main.go`.
+- Nunca coloque lógica de negócios ou inicialização complexa em `cmd/scaner-cli/main.go`.
 - `main.go` deve apenas chamar `cli.Execute()` e executar `os.Exit(1)` em caso de erro fatal.
 
 ### 2. Separação Estrita de Responsabilidades (`internal/` vs `pkg/`)
@@ -91,10 +91,10 @@ Ao propor ou implementar alterações, siga estritamente as seguintes regras:
 
 | Comando | Descrição |
 |---|---|
-| `make build` | Compila o binário aplicando `-ldflags` para `buildinfo` em `./bin/my-scaner` |
+| `make build` | Compila o binário aplicando `-ldflags` para `buildinfo` em `./bin/scaner-cli` |
 | `make test` | Executa todos os testes unitários com race detector (`go test -race -v ./...`) |
 | `make clean` | Remove o diretório `./bin` e artefatos de compilação |
 | `make install` | Executa `./install.sh` para instalar binário, configs e autocompleções |
 | `make uninstall` | Executa `./install.sh --uninstall` para remover o utilitário |
-| `./bin/my-scaner scan -p <arquivo>` | Extrai texto de imagem ou PDF via OpenRouter |
-| `./bin/my-scaner scan -p <arquivo> --provider lmstudio` | Extrai texto de imagem ou PDF via LM Studio local |
+| `./bin/scaner-cli -p <arquivo>` | Extrai texto de imagem ou PDF via OpenRouter |
+| `./bin/scaner-cli -p <arquivo> --provider lmstudio` | Extrai texto de imagem ou PDF via LM Studio local |

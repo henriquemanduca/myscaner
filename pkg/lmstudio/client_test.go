@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"my-scaner/pkg/lmstudio"
+	"scaner-cli/pkg/lmstudio"
 )
 
 func TestLMStudio_ExtractText_Success(t *testing.T) {

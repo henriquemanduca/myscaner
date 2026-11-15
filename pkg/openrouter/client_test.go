@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"my-scaner/pkg/openrouter"
+	"scaner-cli/pkg/openrouter"
 )
 
 func TestValidateInputFile(t *testing.T) {

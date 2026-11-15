@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"my-scaner/pkg/pdf"
+	"scaner-cli/pkg/pdf"
 )
 
 func TestNewPopplerConverter(t *testing.T) {

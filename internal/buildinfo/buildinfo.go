@@ -38,6 +38,6 @@ func Get() Info {
 
 // String formats the build information as a human-readable string.
 func (i Info) String() string {
-	return fmt.Sprintf("my-scaner %s (commit: %s, built at: %s, %s/%s, %s)",
+	return fmt.Sprintf("scaner-cli %s (commit: %s, built at: %s, %s/%s, %s)",
 		i.Version, i.Commit, i.Date, i.OS, i.Arch, i.GoVersion)
 }

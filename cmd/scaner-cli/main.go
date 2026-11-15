@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"my-scaner/internal/cli"
+	"scaner-cli/internal/cli"
 )
 
 func main() {

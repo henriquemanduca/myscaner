@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"my-scaner/pkg/fileutil"
+	"scaner-cli/pkg/fileutil"
 )
 
 // maxResponseBodySize limita a leitura da resposta HTTP para evitar consumo ilimitado de memória (32 MiB).

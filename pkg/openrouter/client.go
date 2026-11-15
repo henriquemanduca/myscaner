@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"my-scaner/pkg/llm"
+	"scaner-cli/pkg/llm"
 )
 
 const (
@@ -98,7 +98,7 @@ func NewClient(apiKey string, opts ...ClientOption) (*Client, error) {
 		Model:        cfg.model,
 		HTTPClient:   cfg.httpClient,
 		ExtraHeaders: map[string]string{
-			"X-Title": "my-scaner",
+			"X-Title": "scaner-cli",
 		},
 	})
 	if err != nil {

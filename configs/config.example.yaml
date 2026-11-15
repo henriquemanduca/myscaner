@@ -1,5 +1,5 @@
-# Exemplo de configuração do my-scaner
-# Pode ser salvo como ./config.yaml ou ~/.config/my-scaner/config.yaml
+# Exemplo de configuração do scaner-cli
+# Pode ser salvo como ./config.yaml ou ~/.config/scaner-cli/config.yaml
 
 log_level: "info"       # debug, info, warn, error
 log_format: "text"      # text ou json

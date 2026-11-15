@@ -1,4 +1,4 @@
-# my-scaner
+# scaner-cli
 
 Ferramenta CLI profissional em **Go** para extração de texto de documentos **PDF** e **imagens** (OCR) via inteligência artificial com suporte a **OpenRouter** (nuvem) e **LM Studio** (local/offline), estruturando o resultado de forma automática e limpa em formato **Markdown (.md)**, seguindo os padrões canônicos da comunidade (*Standard Go Project Layout*) e arquitetura desacoplada.
 
@@ -7,16 +7,16 @@ Ferramenta CLI profissional em **Go** para extração de texto de documentos **P
 ## 📁 Estrutura do Projeto
 
 ```text
-my-scaner/
+scaner-cli/
 ├── cmd/
-│   └── my-scaner/
+│   └── scaner-cli/
 │       └── main.go                 # Ponto de entrada mínimo (thin entrypoint)
 ├── internal/                       # Código privado da aplicação (não importável externamente)
 │   ├── buildinfo/                  # Metadados de build injetados via ldflags (versão, commit, data)
 │   │   └── buildinfo.go
 │   ├── cli/                        # Camada de interface CLI (Cobra)
-│   │   ├── root.go                 # Comando raiz, flags globais e graceful shutdown
-│   │   ├── scan.go                 # Comando 'scan' (extração OCR de imagens/PDF e geração de .md)
+│   │   ├── root.go                 # Comando raiz (OCR de imagens/PDF), flags globais e graceful shutdown
+│   │   ├── scan.go                 # Flags e fluxo de extração OCR (geração do .md)
 │   │   └── version.go              # Subcomando 'version' (suporte a texto e JSON)
 │   ├── config/                     # Gestão de configurações com Viper
 │   │   ├── config.go
@@ -91,41 +91,41 @@ make install
 
 ### Configuração
 
-O `my-scaner` aceita **exclusivamente arquivos YAML**. A configuração é buscada, nesta ordem, em:
+O `scaner-cli` aceita **exclusivamente arquivos YAML**. A configuração é buscada, nesta ordem, em:
 
 1. `./config.yaml` (diretório atual)
-2. `~/.config/my-scaner/config.yaml`
-3. `/etc/my-scaner/config.yaml`
+2. `~/.config/scaner-cli/config.yaml`
+3. `/etc/scaner-cli/config.yaml`
 
 Use [`configs/config.example.yaml`](configs/config.example.yaml) como modelo. Também é possível definir variáveis de ambiente com o prefixo `MY_SCANER_` (ex.: `MY_SCANER_PROVIDER`, `MY_SCANER_OPENROUTER_API_KEY`) ou usar a flag `--config` para indicar um arquivo YAML específico.
 
 ---
 
-### Execução do Comando `scan`
+### Execução (Extração de Texto)
 
-O comando `scan` aceita imagens e PDFs, permitindo alternar facilmente entre nuvem e local:
+O comando principal aceita imagens e PDFs, permitindo alternar facilmente entre nuvem e local:
 
 #### 1. Usando OpenRouter (Padrão)
 ```bash
 export OPENROUTER_API_KEY="sk-or-v1-..."
-./bin/my-scaner scan -p /caminho/para/documento.pdf
+./bin/scaner-cli -p /caminho/para/documento.pdf
 ```
 
 #### 2. Usando LM Studio Local (100% Offline / Privado)
 ```bash
 # Certifique-se de que o servidor local do LM Studio está iniciado na porta 1234
-./bin/my-scaner scan -p /caminho/para/documento.png --provider lmstudio
+./bin/scaner-cli -p /caminho/para/documento.png --provider lmstudio
 
 # Para PDF com modelo local específico
-./bin/my-scaner scan -p ./relatorio.pdf --provider lmstudio --model qwen2.5-vl-7b-instruct
+./bin/scaner-cli -p ./relatorio.pdf --provider lmstudio --model qwen2.5-vl-7b-instruct
 ```
 
 #### 3. Preservar imagens temporárias das páginas do PDF (opcional)
 ```bash
-./bin/my-scaner scan -p ./documento.pdf --keep-images
+./bin/scaner-cli -p ./documento.pdf --keep-images
 ```
 
-#### 4. Flags disponíveis no comando `scan`:
+#### 4. Flags disponíveis:
 - `-p, --path`: Caminho do arquivo de imagem ou PDF (**obrigatório**).
 - `--provider`: Provedor de IA (`openrouter` ou `lmstudio`).
 - `-m, --model`: Nome ou identificador do modelo.

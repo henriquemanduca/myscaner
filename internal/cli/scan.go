@@ -9,86 +9,66 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"my-scaner/pkg/fileutil"
-	"my-scaner/pkg/llm"
-	"my-scaner/pkg/lmstudio"
-	"my-scaner/pkg/openrouter"
+	"scaner-cli/pkg/fileutil"
+	"scaner-cli/pkg/llm"
+	"scaner-cli/pkg/lmstudio"
+	"scaner-cli/pkg/openrouter"
 )
 
-func newScanCmd(a *app) *cobra.Command {
-	var (
-		inputPath  string
-		provider   string
-		model      string
-		apiKey     string
-		baseURL    string
-		keepImages bool
-		dpi        int
-	)
+// scanOptions agrupa as flags do fluxo principal de extração de texto (OCR).
+type scanOptions struct {
+	inputPath  string
+	provider   string
+	model      string
+	apiKey     string
+	baseURL    string
+	keepImages bool
+	dpi        int
+}
 
-	cmd := &cobra.Command{
-		Use:   "scan",
-		Short: "Extrai texto de imagem ou PDF via IA (OpenRouter ou LM Studio) e salva em formato Markdown (.md)",
-		Long: `O comando scan processa a imagem ou documento PDF indicado no parâmetro -p.
-Suporta provedores de IA em nuvem (OpenRouter) ou modelos locais (LM Studio).
-Para PDFs, converte cada página em imagem com alta resolução, envia para extração de OCR
-e consolida todo o conteúdo em um único arquivo Markdown (.md) no mesmo diretório e com mesmo nome base.`,
-		Example: `  # Extrair texto via OpenRouter (padrão)
-  my-scaner scan -p /caminho/para/documento.png
+// bind registra as flags de extração no comando raiz.
+func (o *scanOptions) bind(cmd *cobra.Command) {
+	cmd.Flags().StringVarP(&o.inputPath, "path", "p", "", "Caminho do arquivo (imagem suportada ou .pdf)")
+	cmd.Flags().StringVar(&o.provider, "provider", "", "Provedor de IA para visão/OCR: 'openrouter' (nuvem) ou 'lmstudio' (local)")
+	cmd.Flags().StringVarP(&o.model, "model", "m", "", "Modelo para visão/OCR (OpenRouter: google/gemini-2.0-flash-001; LM Studio: default ou nome carregado)")
+	cmd.Flags().StringVar(&o.apiKey, "api-key", "", "Chave de API (obrigatória para OpenRouter; opcional para LM Studio local)")
+	cmd.Flags().StringVar(&o.baseURL, "base-url", "", "Endpoint base da API (OpenRouter: https://openrouter.ai/api/v1; LM Studio: http://localhost:1234/v1)")
+	cmd.Flags().BoolVar(&o.keepImages, "keep-images", false, "Mantém as imagens temporárias geradas a partir do PDF")
+	cmd.Flags().IntVar(&o.dpi, "dpi", 150, "Resolução em DPI para renderização de páginas de PDF")
+}
 
-  # Extrair texto usando LM Studio local (sem enviar dados para nuvem)
-  my-scaner scan -p /caminho/para/documento.png --provider lmstudio
+// runScan executa o fluxo principal de extração para a imagem ou PDF informado.
+func (a *app) runScan(cmd *cobra.Command, opts *scanOptions) error {
+	ctx := cmd.Context()
 
-  # LM Studio com modelo local e endpoint customizado
-  my-scaner scan -p ./relatorio.pdf --provider lmstudio --model qwen2.5-vl-7b-instruct --base-url http://localhost:1234/v1
-
-  # PDF mantendo imagens temporárias das páginas
-  my-scaner scan -p ./contrato.pdf --keep-images`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			// 1. Validação estrita do arquivo de entrada (existência e extensão suportada)
-			if err := fileutil.ValidateInputFile(inputPath); err != nil {
-				return err
-			}
-
-			// 2. Determinação do provedor (flag > config > default "openrouter")
-			selectedProvider := strings.ToLower(provider)
-			if selectedProvider == "" && a.cfg != nil && a.cfg.Provider != "" {
-				selectedProvider = strings.ToLower(a.cfg.Provider)
-			}
-			if selectedProvider == "" {
-				selectedProvider = "openrouter"
-			}
-
-			// 3. Inicialização do Extractor de acordo com o provedor selecionado
-			extractor, modelName, err := a.buildExtractor(selectedProvider, model, apiKey, baseURL)
-			if err != nil {
-				return err
-			}
-
-			outputPath := fileutil.OutputMarkdownPath(inputPath)
-
-			// 4. Fluxo para PDF vs Imagem direta
-			if fileutil.IsPDF(inputPath) {
-				return a.processPDF(ctx, cmd, extractor, inputPath, outputPath, dpi, keepImages)
-			}
-
-			return a.processSingleImage(ctx, cmd, extractor, inputPath, outputPath, selectedProvider, modelName)
-		},
+	// 1. Validação estrita do arquivo de entrada (existência e extensão suportada)
+	if err := fileutil.ValidateInputFile(opts.inputPath); err != nil {
+		return err
 	}
 
-	cmd.Flags().StringVarP(&inputPath, "path", "p", "", "Caminho do arquivo (imagem suportada ou .pdf)")
-	cmd.Flags().StringVar(&provider, "provider", "", "Provedor de IA para visão/OCR: 'openrouter' (nuvem) ou 'lmstudio' (local)")
-	cmd.Flags().StringVarP(&model, "model", "m", "", "Modelo para visão/OCR (OpenRouter: google/gemini-2.0-flash-001; LM Studio: default ou nome carregado)")
-	cmd.Flags().StringVar(&apiKey, "api-key", "", "Chave de API (obrigatória para OpenRouter; opcional para LM Studio local)")
-	cmd.Flags().StringVar(&baseURL, "base-url", "", "Endpoint base da API (OpenRouter: https://openrouter.ai/api/v1; LM Studio: http://localhost:1234/v1)")
-	cmd.Flags().BoolVar(&keepImages, "keep-images", false, "Mantém as imagens temporárias geradas a partir do PDF")
-	cmd.Flags().IntVar(&dpi, "dpi", 150, "Resolução em DPI para renderização de páginas de PDF")
+	// 2. Determinação do provedor (flag > config > default "openrouter")
+	selectedProvider := strings.ToLower(opts.provider)
+	if selectedProvider == "" && a.cfg != nil && a.cfg.Provider != "" {
+		selectedProvider = strings.ToLower(a.cfg.Provider)
+	}
+	if selectedProvider == "" {
+		selectedProvider = "openrouter"
+	}
 
-	_ = cmd.MarkFlagRequired("path")
+	// 3. Inicialização do Extractor de acordo com o provedor selecionado
+	extractor, modelName, err := a.buildExtractor(selectedProvider, opts.model, opts.apiKey, opts.baseURL)
+	if err != nil {
+		return err
+	}
 
-	return cmd
+	outputPath := fileutil.OutputMarkdownPath(opts.inputPath)
+
+	// 4. Fluxo para PDF vs Imagem direta
+	if fileutil.IsPDF(opts.inputPath) {
+		return a.processPDF(ctx, cmd, extractor, opts.inputPath, outputPath, opts.dpi, opts.keepImages)
+	}
+
+	return a.processSingleImage(ctx, cmd, extractor, opts.inputPath, outputPath, selectedProvider, modelName)
 }
 
 func (a *app) buildExtractor(provider, modelFlag, apiKeyFlag, baseURLFlag string) (llm.Extractor, string, error) {
@@ -184,7 +164,7 @@ func (a *app) processPDF(ctx context.Context, cmd *cobra.Command, extractor llm.
 			return fmt.Errorf("falha ao criar diretório para salvar imagens do PDF: %w", err)
 		}
 	} else {
-		tempDir, err = os.MkdirTemp("", "my-scaner-pdf-*")
+		tempDir, err = os.MkdirTemp("", "scaner-cli-pdf-*")
 		if err != nil {
 			return fmt.Errorf("falha ao criar diretório temporário para conversão de PDF: %w", err)
 		}

@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"my-scaner/internal/config"
-	"my-scaner/internal/logger"
-	"my-scaner/pkg/pdf"
+	"scaner-cli/internal/config"
+	"scaner-cli/internal/logger"
+	"scaner-cli/pkg/pdf"
 )
 
 type globalFlags struct {
@@ -29,6 +29,7 @@ type app struct {
 
 func newRootCmd() *cobra.Command {
 	var flags globalFlags
+	scan := &scanOptions{}
 	a := &app{
 		newConverter: func() (pdf.Converter, error) {
 			return pdf.NewPopplerConverter()
@@ -36,10 +37,25 @@ func newRootCmd() *cobra.Command {
 	}
 
 	rootCmd := &cobra.Command{
-		Use:   "my-scaner",
-		Short: "my-scaner é uma ferramenta CLI moderna e extensível em Go",
-		Long: `my-scaner - Utilitário de linha de comando modular e de alta performance,
-estruturado segundo os padrões de design e boas práticas do ecossistema Go.`,
+		Use:   "scaner-cli",
+		Short: "Extrai texto de imagens e PDFs via IA (OpenRouter ou LM Studio) em Markdown",
+		Long: `scaner-cli - Extrai texto de imagens e documentos PDF via IA e salva o resultado
+em formato Markdown (.md) no mesmo diretório e com o mesmo nome base do arquivo de entrada.
+Suporta provedores de IA em nuvem (OpenRouter) ou modelos locais (LM Studio).
+Para PDFs, converte cada página em imagem com alta resolução, envia para extração de OCR
+e consolida todo o conteúdo em um único arquivo Markdown.`,
+		Example: `  # Extrair texto via OpenRouter (padrão)
+  scaner-cli -p /caminho/para/documento.png
+
+  # Extrair texto usando LM Studio local (sem enviar dados para nuvem)
+  scaner-cli -p /caminho/para/documento.png --provider lmstudio
+
+  # LM Studio com modelo local e endpoint customizado
+  scaner-cli -p ./relatorio.pdf --provider lmstudio --model qwen2.5-vl-7b-instruct --base-url http://localhost:1234/v1
+
+  # PDF mantendo imagens temporárias das páginas
+  scaner-cli -p ./contrato.pdf --keep-images`,
+		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -68,7 +84,16 @@ estruturado segundo os padrões de design e boas práticas do ecossistema Go.`,
 
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Sem arquivo de entrada: exibe a ajuda em vez de falhar.
+			if scan.inputPath == "" {
+				return cmd.Help()
+			}
+			return a.runScan(cmd, scan)
+		},
 	}
+
+	scan.bind(rootCmd)
 
 	rootCmd.PersistentFlags().StringVarP(&flags.cfgFile, "config", "c", "", "caminho do arquivo de configuração")
 	rootCmd.PersistentFlags().BoolVarP(&flags.verbose, "verbose", "v", false, "ativa logs de debug detalhados")
@@ -76,7 +101,6 @@ estruturado segundo os padrões de design e boas práticas do ecossistema Go.`,
 
 	// Registra subcomandos
 	rootCmd.AddCommand(newVersionCmd())
-	rootCmd.AddCommand(newScanCmd(a))
 
 	return rootCmd
 }

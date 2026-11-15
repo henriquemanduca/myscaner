@@ -1,4 +1,4 @@
-module my-scaner
+module scaner-cli
 
 go 1.27.3
 

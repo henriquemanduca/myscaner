@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"my-scaner/pkg/llm"
+	"scaner-cli/pkg/llm"
 )
 
 const (

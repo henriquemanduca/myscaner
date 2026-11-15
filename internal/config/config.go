@@ -33,19 +33,19 @@ type LMStudioConfig struct {
 	APIKey  string `mapstructure:"api_key"` // Opcional no LM Studio local
 }
 
-// DefaultConfigDir retorna o caminho padrão para configurações (~/.config/my-scaner).
+// DefaultConfigDir retorna o caminho padrão para configurações (~/.config/scaner-cli).
 func DefaultConfigDir() (string, error) {
 	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "my-scaner"), nil
+		return filepath.Join(xdg, "scaner-cli"), nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("não foi possível determinar o diretório home do usuário: %w", err)
 	}
-	return filepath.Join(home, ".config", "my-scaner"), nil
+	return filepath.Join(home, ".config", "scaner-cli"), nil
 }
 
-// DefaultConfigFilePath retorna o caminho completo padrão do arquivo YAML (~/.config/my-scaner/config.yaml).
+// DefaultConfigFilePath retorna o caminho completo padrão do arquivo YAML (~/.config/scaner-cli/config.yaml).
 func DefaultConfigFilePath() (string, error) {
 	dir, err := DefaultConfigDir()
 	if err != nil {
@@ -135,7 +135,7 @@ func addConfigPaths(v *viper.Viper) {
 		add(dir)
 	}
 	if home, err := os.UserHomeDir(); err == nil {
-		add(filepath.Join(home, ".config", "my-scaner"))
+		add(filepath.Join(home, ".config", "scaner-cli"))
 	}
-	add("/etc/my-scaner")
+	add("/etc/scaner-cli")
 }
